@@ -15,3 +15,7 @@ game_events.jsonl
 
 # VSCode
 .vscode/
+
+# Extensions
+docs/
+EXTENSIONS.md
