@@ -12,8 +12,12 @@ def main():
     clock = pygame.time.Clock()
     dt = 0.0
     score = 0
-    font = pygame.font.SysFont("Arial", 36)
+    font = pygame.font.SysFont("Arial", 24)
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    background = pygame.image.load("assets/background.jpg").convert_alpha()
+    background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 128))
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
     asteroids = pygame.sprite.Group()
@@ -44,9 +48,13 @@ def main():
                 print(f"Final Score: {score}")
                 print("Game Over!")
                 sys.exit()
-        screen.fill("black")
+        screen.blit(background, (0, 0))
+        screen.blit(overlay, (0, 0))
         score_text = font.render(f"Score: {score}", True, "white")
+        fps_text = font.render(f"FPS: {round(clock.get_fps())}", True, "white")
         screen.blit(score_text, (10, 10))
+        fps_rect = fps_text.get_rect(topright=(SCREEN_WIDTH - 10, 10))
+        screen.blit(fps_text, fps_rect)
         for sprite in drawable:
             sprite.draw(screen)
         pygame.display.flip()
