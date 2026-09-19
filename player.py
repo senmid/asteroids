@@ -1,3 +1,4 @@
+import math
 from circleshape import CircleShape
 from constants import LINE_WIDTH, PLAYER_RADIUS, PLAYER_SHOOT_COOLDOWN_SECONDS, PLAYER_SHOOT_SPEED, PLAYER_SPEED, PLAYER_TURN_SPEED
 import pygame
@@ -34,6 +35,7 @@ class Player(CircleShape):
         self.shot_cooldown -= dt
         self.wrap_position()
         keys = pygame.key.get_pressed()
+        mouse = pygame.mouse.get_pressed()
         if keys[pygame.K_w]:
             self.move(dt)
         if keys[pygame.K_s]:
@@ -42,7 +44,7 @@ class Player(CircleShape):
             self.rotate(-dt)
         if keys[pygame.K_d]:
             self.rotate(dt)
-        if keys[pygame.K_SPACE]:
+        if keys[pygame.K_SPACE] or mouse[0]:
             self.shoot()
     
     def shoot(self) -> None:
