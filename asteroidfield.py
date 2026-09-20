@@ -3,13 +3,20 @@ from collections.abc import Callable
 
 import pygame
 from asteroid import Asteroid
-from constants import *
+from constants import (
+    ASTEROID_KINDS,
+    ASTEROID_MAX_RADIUS,
+    ASTEROID_MIN_RADIUS,
+    ASTEROID_SPAWN_RATE_SECONDS,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 
 Edge = tuple[pygame.Vector2, Callable[[float], pygame.Vector2]]
 
 
 class AsteroidField(pygame.sprite.Sprite):
-    containers: pygame.sprite.Group
+    containers: tuple[pygame.sprite.Group, ...]
 
     edges: list[Edge] = [
         (
@@ -35,7 +42,7 @@ class AsteroidField(pygame.sprite.Sprite):
     ]
 
     def __init__(self) -> None:
-        pygame.sprite.Sprite.__init__(self, self.containers)
+        super().__init__(*self.containers)
         self.spawn_timer = 0.0
 
     def spawn(

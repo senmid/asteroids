@@ -1,0 +1,118 @@
+import pygame
+from asteroid import Asteroid, score_for_radius
+from asteroidfield import AsteroidField
+from constants import (
+    PLAYER_LIVES,
+    PLAYER_RESPAWN_CLEAR_RADIUS,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
+from hud import Hud
+from player import Player
+from shot import Shot
+
+SPAWN_X = SCREEN_WIDTH / 2
+SPAWN_Y = SCREEN_HEIGHT / 2
+
+def kill_all(group: pygame.sprite.Group) -> None:
+    for sprite in list(group):
+        sprite.kill()
+    
+class Game:
+    def __init__(self, screen: pygame.Surface) -> None:
+        self.screen = screen
+        self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont("Arial", 24)
+        self.hud = Hud(self.font)
+        self.background = pygame.image.load("assets/background.jpg").convert()
+        self.background = pygame.transform.scale(
+            self.background, (SCREEN_WIDTH, SCREEN_HEIGHT)
+        )
+        self.overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        self.overlay.fill((0, 0, 0, 128))
+        self.updatable = pygame.sprite.Group()
+        self.drawable = pygame.sprite.Group()
+        self.asteroids = pygame.sprite.Group()
+        self.shots = pygame.sprite.Group()
+        Asteroid.containers = (self.asteroids, self.updatable, self.drawable)
+        AsteroidField.containers = (self.updatable,)
+        Shot.containers = (self.drawable, self.updatable, self.shots)
+        Player.containers = (self.updatable, self.drawable)
+        self.field = AsteroidField()
+        self.player = Player(SPAWN_X, SPAWN_Y)
+        self.score = 0
+        self.lives = PLAYER_LIVES
+        self.is_game_over = False
+        self.dt = 0.0
+    
+    def reset(self) -> None:
+        self.lives = PLAYER_LIVES
+        self.score = 0
+        self.is_game_over = False
+        kill_all(self.asteroids)
+        kill_all(self.shots)
+        self.field.spawn_timer = 0.0
+        self.player.respawn(SPAWN_X, SPAWN_Y)
+    
+    def handle_events(self) -> bool:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            if (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_RETURN
+                and self.is_game_over
+            ):
+                self.reset()
+        return True
+    
+    def handle_shot_hits(self) -> None:
+        for asteroid in self.asteroids:
+            for shot in self.shots:
+                if asteroid.collides_with(shot):
+                    shot.kill()
+                    self.score += score_for_radius(asteroid.radius)
+                    asteroid.split()
+    
+    def handle_player_hits(self) -> None:
+        if self.player.is_invulnerable:
+            return
+        for asteroid in self.asteroids:
+            if not asteroid.collides_with(self.player):
+                continue
+            self.lives -= 1
+            if self.lives <= 0:
+                self.is_game_over = True
+                return
+            self.player.respawn(SPAWN_X, SPAWN_Y)
+            for rock in list(self.asteroids):
+                if rock.position.distance_to(self.player.position) <= PLAYER_RESPAWN_CLEAR_RADIUS:
+                    rock.kill()
+            return
+        
+    def update(self) -> None:
+        if self.is_game_over:
+            return
+        self.updatable.update(self.dt)
+        self.handle_shot_hits()
+        self.handle_player_hits()
+    
+    def draw(self) -> None:
+        self.screen.blit(self.background, (0, 0))
+        self.screen.blit(self.overlay, (0, 0))
+        for sprite in self.drawable:
+            sprite.draw(self.screen)
+        self.hud.draw(
+            self.screen,
+            self.score,
+            self.lives,
+            self.clock.get_fps(),
+            self.is_game_over,
+        )
+        pygame.display.flip()
+    
+    def run(self) -> None:
+        while self.handle_events():
+            self.update()
+            self.draw()
+            self.dt = self.clock.tick(60) / 1000.0

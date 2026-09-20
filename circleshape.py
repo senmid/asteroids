@@ -30,5 +30,14 @@ class CircleShape(pygame.sprite.Sprite):
         pass
 
     def wrap_position(self) -> None:
-        self.position.x %= SCREEN_WIDTH
-        self.position.y %= SCREEN_HEIGHT
+        if self.position.x > SCREEN_WIDTH:
+            self.position.x = -self.radius
+        if self.position.x < -self.radius:
+            self.position.x = SCREEN_WIDTH + self.radius
+        if self.position.y > SCREEN_HEIGHT:
+            self.position.y = -self.radius
+        if self.position.y < -self.radius:
+            self.position.y = SCREEN_HEIGHT + self.radius
+
+    def move(self, dt: float) -> None:
+        self.position += self.velocity * dt

@@ -1,7 +1,18 @@
 from circleshape import CircleShape
-from constants import LINE_WIDTH, PLAYER_BRAKE_FRICTION, PLAYER_FRICTION, PLAYER_INVULN_SECONDS, PLAYER_MAX_SPEED, PLAYER_RADIUS, PLAYER_SHOOT_COOLDOWN_SECONDS, PLAYER_SHOOT_SPEED, PLAYER_THRUST, PLAYER_TURN_SPEED
 import pygame
 from shot import Shot
+from constants import (
+    LINE_WIDTH,
+    PLAYER_BRAKE_FRICTION,
+    PLAYER_FRICTION,
+    PLAYER_INVULN_SECONDS,
+    PLAYER_MAX_SPEED,
+    PLAYER_RADIUS,
+    PLAYER_SHOOT_COOLDOWN_SECONDS,
+    PLAYER_SHOOT_SPEED,
+    PLAYER_THRUST,
+    PLAYER_TURN_SPEED,
+)
 
 
 class Player(CircleShape):
@@ -18,16 +29,12 @@ class Player(CircleShape):
     def ship(self) -> list[pygame.Vector2]:
         forward = self.forward()
         right = forward.rotate(90) * self.radius / 1.5
-        
         nose = self.position + forward * self.radius
         rear_center = self.position - forward * (self.radius * 0.4)
-        
         left_wing = self.position - forward * (self.radius * 0.8) - right * 1.3
         right_wing = self.position - forward * (self.radius * 0.8) + right * 1.3
-        
         left_indent = self.position - forward * (self.radius * 0.5) - right * 0.6
         right_indent = self.position - forward * (self.radius * 0.5) + right * 0.6
-        
         return [nose, right_indent, right_wing, rear_center, left_wing, left_indent]
 
     
@@ -39,7 +46,7 @@ class Player(CircleShape):
         return [back - side, back + side, tip]
 
     def draw(self, screen: pygame.Surface) -> None:
-        if self.is_invulnerable() and int(self.invulnerable_timer * 8) % 2 == 0:
+        if self.is_invulnerable and int(self.invulnerable_timer * 8) % 2 == 0:
             return
         pygame.draw.polygon(screen, "white", self.ship(), LINE_WIDTH)
         if self.is_thrusting:
@@ -55,27 +62,49 @@ class Player(CircleShape):
         self.velocity *= max(0, 1 - PLAYER_BRAKE_FRICTION * dt)
 
     def update(self, dt: float) -> None:
-        self.invulnerable_timer = max(0.0, self.invulnerable_timer - dt)
+        self._tick_timers(dt)
         keys = pygame.key.get_pressed()
         mouse = pygame.mouse.get_pressed()
-        self.velocity *= PLAYER_FRICTION
+        self._apply_friction(dt)
+        self._handle_thrust(dt, keys)
+        self._integrate(dt)
+        self._handle_steering(dt, keys)
+        self._handle_fire(keys, mouse)
+
+    def _tick_timers(self, dt: float) -> None:
+        self.invulnerable_timer = max(0.0, self.invulnerable_timer - dt)
+        self.shot_cooldown -= dt
+
+    def _apply_friction(self, dt: float) -> None:
+        self.velocity *= PLAYER_FRICTION ** (dt * 60)
+
+    def _handle_thrust(self, dt: float, keys: pygame.key.ScancodeWrapper) -> None:
         self.is_thrusting = keys[pygame.K_w]
-        if keys[pygame.K_w]:
+        if self.is_thrusting:
             self.thrust(dt)
         elif keys[pygame.K_s]:
             self.brake(dt)
+
+    def _integrate(self, dt: float) -> None:
         if self.velocity.length() > PLAYER_MAX_SPEED:
             self.velocity = self.velocity.normalize() * PLAYER_MAX_SPEED
-        self.position += self.velocity * dt
-        self.shot_cooldown -= dt
+        self.move(dt)
         self.wrap_position()
+
+    def _handle_steering(self, dt: float, keys: pygame.key.ScancodeWrapper) -> None:
         if keys[pygame.K_a]:
             self.rotate(-dt)
         if keys[pygame.K_d]:
             self.rotate(dt)
+
+    def _handle_fire(
+        self,
+        keys: pygame.key.ScancodeWrapper,
+        mouse: tuple[bool, bool, bool],
+    ) -> None:
         if keys[pygame.K_SPACE] or mouse[0]:
             self.shoot()
-    
+        
     def shoot(self) -> None:
         if self.shot_cooldown > 0:
             return
@@ -88,6 +117,7 @@ class Player(CircleShape):
         self.velocity = pygame.Vector2(0, 0)
         self.invulnerable_timer = PLAYER_INVULN_SECONDS
     
+    @property
     def is_invulnerable(self) -> bool:
         return self.invulnerable_timer > 0.0
 
@@ -95,16 +125,12 @@ class Player(CircleShape):
     def draw_life_icon(screen: pygame.Surface, x: float, y: float, radius: float = 10) -> None:
         width = radius * 1.2
         height = radius * 1.2
-
         top_center = pygame.Vector2(x, y - height * 0.2)
         bottom_tip = pygame.Vector2(x, y + height)
-
         left_shoulder = pygame.Vector2(x - width, y - height * 0.4)
         right_shoulder = pygame.Vector2(x + width, y - height * 0.4)
-
         left_lobe = pygame.Vector2(x - width * 0.5, y - height * 0.9)
         right_lobe = pygame.Vector2(x + width * 0.5, y - height * 0.9)
-
         heart_points = [
             top_center,
             left_lobe,
@@ -113,5 +139,4 @@ class Player(CircleShape):
             right_shoulder,
             right_lobe
         ]
-
         pygame.draw.polygon(screen, "white", heart_points)
