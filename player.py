@@ -15,6 +15,38 @@ from constants import (
 )
 
 
+def point_in_triangle(
+    p: pygame.Vector2,
+    a: pygame.Vector2,
+    b: pygame.Vector2,
+    c: pygame.Vector2,
+) -> bool:
+    ab = b - a
+    bc = c - b
+    ca = a - c
+    c1 = ab.cross(p - a)
+    c2 = bc.cross(p - b)
+    c3 = ca.cross(p - c)
+    has_neg = (c1 < 0) or (c2 < 0) or (c3 < 0)
+    has_pos = (c1 > 0) or (c2 > 0) or (c3 > 0)
+    return not (has_neg and has_pos)
+
+
+def distance_point_to_segment(
+    p: pygame.Vector2,
+    a: pygame.Vector2,
+    b: pygame.Vector2,
+) -> float:
+    ab = b - a
+    length_sq = ab.length_squared()
+    if length_sq == 0:
+        return p.distance_to(a)
+    t = (p - a).dot(ab) / length_sq
+    t = max(0.0, min(1.0, t))
+    closest = a + ab * t
+    return p.distance_to(closest)
+
+
 class Player(CircleShape):
     def __init__(self, x: float, y: float) -> None:
         super().__init__(x, y, PLAYER_RADIUS)
@@ -22,7 +54,7 @@ class Player(CircleShape):
         self.shot_cooldown = 0
         self.is_thrusting = False
         self.invulnerable_timer = 0.0
-    
+
     def forward(self) -> pygame.Vector2:
         return pygame.Vector2(0, 1).rotate(self.rotation)
 
@@ -32,12 +64,14 @@ class Player(CircleShape):
         nose = self.position + forward * self.radius
         rear_center = self.position - forward * (self.radius * 0.4)
         left_wing = self.position - forward * (self.radius * 0.8) - right * 1.3
-        right_wing = self.position - forward * (self.radius * 0.8) + right * 1.3
-        left_indent = self.position - forward * (self.radius * 0.5) - right * 0.6
-        right_indent = self.position - forward * (self.radius * 0.5) + right * 0.6
+        right_wing = self.position - forward * \
+            (self.radius * 0.8) + right * 1.3
+        left_indent = self.position - forward * \
+            (self.radius * 0.5) - right * 0.6
+        right_indent = self.position - forward * \
+            (self.radius * 0.5) + right * 0.6
         return [nose, right_indent, right_wing, rear_center, left_wing, left_indent]
 
-    
     def flame(self) -> list[pygame.Vector2]:
         forward = self.forward()
         back = self.position - forward * self.radius
@@ -57,7 +91,7 @@ class Player(CircleShape):
 
     def thrust(self, dt: float) -> None:
         self.velocity += self.forward() * PLAYER_THRUST * dt
-    
+
     def brake(self, dt: float) -> None:
         self.velocity *= max(0, 1 - PLAYER_BRAKE_FRICTION * dt)
 
@@ -104,7 +138,7 @@ class Player(CircleShape):
     ) -> None:
         if keys[pygame.K_SPACE] or mouse[0]:
             self.shoot()
-        
+
     def shoot(self) -> None:
         if self.shot_cooldown > 0:
             return
@@ -116,7 +150,7 @@ class Player(CircleShape):
         self.position = pygame.Vector2(x, y)
         self.velocity = pygame.Vector2(0, 0)
         self.invulnerable_timer = PLAYER_INVULN_SECONDS
-    
+
     @property
     def is_invulnerable(self) -> bool:
         return self.invulnerable_timer > 0.0
@@ -140,3 +174,22 @@ class Player(CircleShape):
             right_lobe
         ]
         pygame.draw.polygon(screen, "white", heart_points)
+
+    def triangle(self) -> tuple[pygame.Vector2, pygame.Vector2, pygame.Vector2]:
+        forward = self.forward()
+        right = forward.rotate(90) * self.radius / 1.5
+        nose = self.position + forward * self.radius
+        left_wing = self.position - forward * (self.radius * 0.8) - right * 1.3
+        right_wing = self.position - forward * (self.radius * 0.8) + right * 1.3
+        return nose, right_wing, left_wing
+
+    def collides_with_asteroid(self, asteroid: CircleShape) -> bool:
+        a, b, c = self.triangle()
+        center = asteroid.position
+        radius = asteroid.radius
+        if point_in_triangle(center, a, b, c):
+            return True
+        for p1, p2 in ((a, b), (b, c), (c, a)):
+            if distance_point_to_segment(center, p1, p2) <= radius:
+                return True
+        return False

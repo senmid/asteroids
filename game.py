@@ -85,7 +85,7 @@ class Game:
         if self.player.is_invulnerable:
             return
         for asteroid in self.asteroids:
-            if not asteroid.collides_with(self.player):
+            if not self.player.collides_with_asteroid(asteroid):
                 continue
             x, y = self.player.position.x, self.player.position.y
             Explosion.spawn_player_explosion(x, y)
