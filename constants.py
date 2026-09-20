@@ -8,8 +8,6 @@ ASTEROID_KINDS = 3
 ASTEROID_SPAWN_RATE_SECONDS = 0.8
 ASTEROID_MAX_RADIUS = ASTEROID_MIN_RADIUS * ASTEROID_KINDS
 SHOT_RADIUS = 5
-PLAYER_SHOOT_SPEED = 500
-PLAYER_SHOOT_COOLDOWN_SECONDS = 0.3
 SCORE_LARGE = 20
 SCORE_MEDIUM = 50
 SCORE_SMALL = 100
@@ -35,3 +33,55 @@ FRICTION_DEFECT_VALUE = 0.94
 SHIELD_REGEN_PER_SECOND = 0.4
 SHIELD_MAX_SECONDS = 5.0
 SHIELD_PICKUP_SECONDS = 5.0
+WEAPON_NORMAL = "normal"
+WEAPON_SPREAD = "spread"
+WEAPON_HEAVY = "heavy"
+WEAPON_BUFF_SECONDS = 6.0
+
+WEAPONS = {
+    WEAPON_NORMAL: {
+        "cooldown": 0.22,
+        "speed": 520,
+        "radius": SHOT_RADIUS,
+        "color": "white",
+        "angles": (0,),
+        "pierce": 1,
+        "blast_radius": 0.0,
+    },
+    WEAPON_SPREAD: {
+        "cooldown": 0.40,
+        "speed": 450,
+        "radius": 4,
+        "color": "orange",
+        "angles": (-15, 0, 15),
+        "pierce": 1,
+        "blast_radius": 0.0,
+    },
+    WEAPON_HEAVY: {
+        "cooldown": 0.85,
+        "speed": 380,
+        "radius": 10,
+        "color": "gold",
+        "angles": (0,),
+        "pierce": 2,
+        "blast_radius": 55.0,
+    },
+}
+
+WEAPON_BUFFS = {
+    WEAPON_NORMAL: {
+        "cooldown": 0.10,
+        "radius": 7,
+        "color": "cyan",
+    },
+    WEAPON_SPREAD: {
+        "cooldown": 0.32,
+        "angles": (-30, -15, 0, 15, 30),
+        "color": "orange",
+    },
+    WEAPON_HEAVY: {
+        "pierce": 4,
+        "blast_radius": 95.0,
+        "color": "red",
+    },
+}

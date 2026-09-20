@@ -9,8 +9,6 @@ from constants import (
     PLAYER_INVULN_SECONDS,
     PLAYER_MAX_SPEED,
     PLAYER_RADIUS,
-    PLAYER_SHOOT_COOLDOWN_SECONDS,
-    PLAYER_SHOOT_SPEED,
     PLAYER_THRUST,
     PLAYER_TURN_SPEED,
     SHIELD_MAX_SECONDS,
@@ -21,6 +19,10 @@ from constants import (
     SPEED_MULTIPLIER,
     FRICTION_DEFECT_SECONDS,
     SHOT_WRAP_SECONDS,
+    WEAPON_BUFF_SECONDS,
+    WEAPON_BUFFS,
+    WEAPON_NORMAL,
+    WEAPONS,
 )
 
 
@@ -61,6 +63,8 @@ class Player(CircleShape):
         super().__init__(x, y, PLAYER_RADIUS)
         self.rotation = 0
         self.shot_cooldown = 0
+        self.weapon = WEAPON_NORMAL
+        self.weapon_timer = 0.0
         self.is_thrusting = False
         self.invulnerable_timer = 0.0
         self.shield_energy = 0.0
@@ -133,6 +137,7 @@ class Player(CircleShape):
         self.speed_timer = max(0.0, self.speed_timer - dt)
         self.shot_wrap_timer = max(0.0, self.shot_wrap_timer - dt)
         self.friction_timer = max(0.0, self.friction_timer - dt)
+        self.weapon_timer = max(0.0, self.weapon_timer - dt)
         self._tick_shield(dt)
 
     def _tick_shield(self, dt: float) -> None:
@@ -157,6 +162,17 @@ class Player(CircleShape):
             self.grant_shot_wrap()
         elif kind == "friction":
             self.grant_friction()
+        elif kind == "weapon":
+            self.grant_weapon_buff()
+        
+    def grant_weapon_buff(self) -> None:
+        self.weapon_timer = WEAPON_BUFF_SECONDS
+
+    def _weapon_stats(self) -> dict:
+        stats = dict(WEAPONS[self.weapon])
+        if self.weapon_timer > 0.0:
+            stats.update(WEAPON_BUFFS[self.weapon])
+        return stats
 
     def grant_shield(self) -> None:
         self.shield_energy = min(
@@ -220,12 +236,29 @@ class Player(CircleShape):
     def shoot(self) -> None:
         if self.shot_cooldown > 0:
             return
-        self.shot_cooldown = PLAYER_SHOOT_COOLDOWN_SECONDS
-        shot = Shot(self.position.x, self.position.y)
-        shot.velocity = self.forward() * PLAYER_SHOOT_SPEED
+        stats = self._weapon_stats()
+        self.shot_cooldown = stats["cooldown"]
+        for angle in stats["angles"]:
+            self._spawn_shot(stats, angle)
+
+    def _spawn_shot(self, stats: dict, angle: float) -> None:
+        shot = Shot(
+            self.position.x,
+            self.position.y,
+            radius=stats["radius"],
+            color=stats["color"],
+            pierce=stats["pierce"],
+            blast_radius=stats["blast_radius"],
+        )
+        shot.velocity = self.forward().rotate(angle) * stats["speed"]
         if self.shot_wrap_timer > 0.0:
             shot.can_wrap = True
             shot.life = SHOT_WRAP_LIFE_SECONDS
+
+    def set_weapon(self, weapon: str) -> None:
+        if weapon not in WEAPONS:
+            return
+        self.weapon = weapon
 
     def respawn(self, x: float, y: float) -> None:
         self.position = pygame.Vector2(x, y)
@@ -235,6 +268,7 @@ class Player(CircleShape):
         self.speed_timer = 0.0
         self.shot_wrap_timer = 0.0
         self.friction_timer = 0.0
+        self.weapon_timer = 0.0
 
     @property
     def is_invulnerable(self) -> bool:

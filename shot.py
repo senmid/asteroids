@@ -8,13 +8,24 @@ from constants import (
 
 
 class Shot(CircleShape):
-    def __init__(self, x: float, y: float) -> None:
-        super().__init__(x, y, SHOT_RADIUS)
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        radius: float = SHOT_RADIUS,
+        color: str = "white",
+        pierce: int = 1,
+        blast_radius: float = 0.0,
+    ) -> None:
+        super().__init__(x, y, radius)
         self.can_wrap = False
         self.life = 0.0
-    
+        self.color = color
+        self.pierce_left = pierce
+        self.blast_radius = blast_radius
+
     def draw(self, screen: pygame.Surface) -> None:
-        pygame.draw.circle(screen, "white", self.position, self.radius)
+        pygame.draw.circle(screen, self.color, self.position, self.radius)
     
     def update(self, dt: float) -> None:
         self.move(dt)

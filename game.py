@@ -67,6 +67,7 @@ class Game:
         kill_all(self.powerups)
         self.field.spawn_timer = 0.0
         self.player.respawn(SPAWN_X, SPAWN_Y)
+        self.player.set_weapon("normal")
 
     def handle_events(self) -> bool:
         for event in pygame.event.get():
@@ -78,6 +79,13 @@ class Game:
                 and not self.is_game_over
             ):
                 self.player.try_toggle_shield()
+            if event.type == pygame.KEYDOWN and not self.is_game_over:
+                if event.key == pygame.K_1:
+                    self.player.set_weapon("normal")
+                elif event.key == pygame.K_2:
+                    self.player.set_weapon("spread")
+                elif event.key == pygame.K_3:
+                    self.player.set_weapon("heavy")
             if (
                 event.type == pygame.KEYDOWN
                 and event.key == pygame.K_RETURN
@@ -87,22 +95,49 @@ class Game:
         return True
 
     def handle_shot_hits(self) -> None:
-        for asteroid in self.asteroids:
-            for shot in self.shots:
-                if asteroid.collides_with(shot):
+        for shot in list(self.shots):
+            for asteroid in list(self.asteroids):
+                if not asteroid.alive() or not asteroid.collides_with(shot):
+                    continue
+                blast_center = pygame.Vector2(asteroid.position)
+                is_last_hit = shot.pierce_left <= 1
+                if is_last_hit and shot.blast_radius > 0.0:
+                    nearby = [
+                        rock
+                        for rock in list(self.asteroids)
+                        if rock is not asteroid
+                        and rock.alive()
+                        and rock.position.distance_to(blast_center)
+                        <= shot.blast_radius + rock.radius
+                    ]
+                    self._destroy_asteroid(asteroid)
+                    Explosion.spawn_explosions(
+                        blast_center.x, blast_center.y, shot.blast_radius
+                    )
+                    for rock in nearby:
+                        if rock.alive():
+                            self._destroy_asteroid(rock)
                     shot.kill()
-                    self.score += score_for_radius(asteroid.radius)
-                    x, y = asteroid.position.x, asteroid.position.y
-                    radius = asteroid.radius
-                    if radius > ASTEROID_MIN_RADIUS and random.random() < POWERUP_DROP_CHANCE:
-                        kind = random.choices(
-                            ("shield", "speed", "shot_wrap", "friction"),
-                            weights=(30, 30, 20, 20),
-                            k=1,
-                        )[0]
-                        Powerup(x, y, kind)
-                    asteroid.split()
-                    Explosion.spawn_explosions(x, y, radius)
+                    break
+                self._destroy_asteroid(asteroid)
+                shot.pierce_left -= 1
+                if shot.pierce_left <= 0:
+                    shot.kill()
+                    break
+
+    def _destroy_asteroid(self, asteroid: Asteroid) -> None:
+        self.score += score_for_radius(asteroid.radius)
+        x, y = asteroid.position.x, asteroid.position.y
+        radius = asteroid.radius
+        if radius > ASTEROID_MIN_RADIUS and random.random() < POWERUP_DROP_CHANCE:
+            kind = random.choices(
+                ("shield", "speed", "shot_wrap", "friction", "weapon"),
+                weights=(25, 25, 15, 15, 20),
+                k=1,
+            )[0]
+            Powerup(x, y, kind)
+        asteroid.split()
+        Explosion.spawn_explosions(x, y, radius)
 
     def handle_player_hits(self) -> None:
         if self.player.is_invulnerable:

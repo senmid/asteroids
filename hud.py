@@ -36,6 +36,9 @@ class Hud:
 
     def _draw_buffs(self, screen: pygame.Surface, player: Player) -> None:
         labels: list[tuple[str, str]] = []
+        labels.append((f"GUN {player.weapon.upper()}", "white"))
+        if player.weapon_timer > 0.0:
+            labels.append((f"GUN BUFF {player.weapon_timer:.1f}", "orange"))
         labels.append((
             f"{'SHIELD ON' if player.has_shield else 'SHIELD'} "
             f"{player.shield_energy:.1f}/{SHIELD_MAX_SECONDS:.0f}",
