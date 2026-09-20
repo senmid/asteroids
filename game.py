@@ -7,6 +7,7 @@ from constants import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+from explosion import Explosion
 from hud import Hud
 from player import Player
 from shot import Shot
@@ -34,9 +35,11 @@ class Game:
         self.drawable = pygame.sprite.Group()
         self.asteroids = pygame.sprite.Group()
         self.shots = pygame.sprite.Group()
+        self.explosions = pygame.sprite.Group()
         Asteroid.containers = (self.asteroids, self.updatable, self.drawable)
         AsteroidField.containers = (self.updatable,)
         Shot.containers = (self.drawable, self.updatable, self.shots)
+        Explosion.containers = (self.drawable, self.updatable, self.explosions)
         Player.containers = (self.updatable, self.drawable)
         self.field = AsteroidField()
         self.player = Player(SPAWN_X, SPAWN_Y)
@@ -51,6 +54,7 @@ class Game:
         self.is_game_over = False
         kill_all(self.asteroids)
         kill_all(self.shots)
+        kill_all(self.explosions)
         self.field.spawn_timer = 0.0
         self.player.respawn(SPAWN_X, SPAWN_Y)
     
@@ -72,7 +76,10 @@ class Game:
                 if asteroid.collides_with(shot):
                     shot.kill()
                     self.score += score_for_radius(asteroid.radius)
+                    x, y = asteroid.position.x, asteroid.position.y
+                    radius = asteroid.radius
                     asteroid.split()
+                    Explosion.spawn_explosions(x, y, radius)
     
     def handle_player_hits(self) -> None:
         if self.player.is_invulnerable:
@@ -80,6 +87,8 @@ class Game:
         for asteroid in self.asteroids:
             if not asteroid.collides_with(self.player):
                 continue
+            x, y = self.player.position.x, self.player.position.y
+            Explosion.spawn_player_explosion(x, y)
             self.lives -= 1
             if self.lives <= 0:
                 self.is_game_over = True
@@ -92,6 +101,7 @@ class Game:
         
     def update(self) -> None:
         if self.is_game_over:
+            self.explosions.update(self.dt)
             return
         self.updatable.update(self.dt)
         self.handle_shot_hits()
