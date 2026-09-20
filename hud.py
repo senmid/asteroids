@@ -1,5 +1,6 @@
 import pygame
 from constants import (
+    BOMB_MAX_AMMO,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SHIELD_MAX_SECONDS,
@@ -39,6 +40,9 @@ class Hud:
         labels.append((f"GUN {player.weapon.upper()}", "white"))
         if player.weapon_timer > 0.0:
             labels.append((f"GUN BUFF {player.weapon_timer:.1f}", "orange"))
+        labels.append((f"BOMBS {player.bomb_ammo}/{BOMB_MAX_AMMO}", "red"))
+        if player.bomb_cooldown > 0.0:
+            labels.append((f"BOMB COOLDOWN {player.bomb_cooldown:.1f}", "orange"))
         labels.append((
             f"{'SHIELD ON' if player.has_shield else 'SHIELD'} "
             f"{player.shield_energy:.1f}/{SHIELD_MAX_SECONDS:.0f}",

@@ -2,11 +2,15 @@ import random
 import pygame
 from asteroid import Asteroid, score_for_radius
 from asteroidfield import AsteroidField
+from bomb import BlastRing, Bomb
 from constants import (
     ASTEROID_MIN_RADIUS,
+    BOMB_RADIUS,
     PLAYER_LIVES,
     PLAYER_RESPAWN_CLEAR_RADIUS,
     POWERUP_DROP_CHANCE,
+    POWERUP_KINDS,
+    POWERUP_WEIGHTS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
@@ -44,11 +48,14 @@ class Game:
         self.shots = pygame.sprite.Group()
         self.explosions = pygame.sprite.Group()
         self.powerups = pygame.sprite.Group()
+        self.bombs = pygame.sprite.Group()
         Asteroid.containers = (self.asteroids, self.updatable, self.drawable)
         AsteroidField.containers = (self.updatable,)
         Shot.containers = (self.drawable, self.updatable, self.shots)
         Explosion.containers = (self.drawable, self.updatable, self.explosions)
         Powerup.containers = (self.updatable, self.drawable, self.powerups)
+        Bomb.containers = (self.bombs, self.updatable, self.drawable)
+        BlastRing.containers = (self.drawable, self.updatable, self.explosions)
         Player.containers = (self.updatable, self.drawable)
         self.field = AsteroidField()
         self.player = Player(SPAWN_X, SPAWN_Y)
@@ -65,6 +72,7 @@ class Game:
         kill_all(self.shots)
         kill_all(self.explosions)
         kill_all(self.powerups)
+        kill_all(self.bombs)
         self.field.spawn_timer = 0.0
         self.player.respawn(SPAWN_X, SPAWN_Y)
         self.player.set_weapon("normal")
@@ -73,26 +81,98 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
-            if (
-                event.type == pygame.MOUSEBUTTONDOWN
-                and event.button == 3
-                and not self.is_game_over
-            ):
-                self.player.try_toggle_shield()
-            if event.type == pygame.KEYDOWN and not self.is_game_over:
-                if event.key == pygame.K_1:
-                    self.player.set_weapon("normal")
-                elif event.key == pygame.K_2:
-                    self.player.set_weapon("spread")
-                elif event.key == pygame.K_3:
-                    self.player.set_weapon("heavy")
-            if (
-                event.type == pygame.KEYDOWN
-                and event.key == pygame.K_RETURN
-                and self.is_game_over
-            ):
-                self.reset()
+            if self.is_game_over:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                    self.reset()
+                continue
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 3:
+                    self.player.try_toggle_shield()
+                elif event.button == 2:
+                    self._handle_bomb_key()
+            elif event.type == pygame.KEYDOWN:
+                weapon_map = {
+                    pygame.K_1: "normal",
+                    pygame.K_2: "spread",
+                    pygame.K_3: "heavy",
+                }
+                if event.key in weapon_map:
+                    self.player.set_weapon(weapon_map[event.key])
+                elif event.key == pygame.K_b:
+                    self._handle_bomb_key()
         return True
+
+    def _handle_bomb_key(self) -> None:
+        live = [
+            bomb
+            for bomb in self.bombs
+            if bomb.alive() and not bomb.just_exploded
+        ]
+        if live:
+            for bomb in live:
+                bomb.detonate_now()
+            return
+        self.player.try_drop_bomb()
+
+    def _obliterate_asteroid(self, asteroid: Asteroid) -> None:
+        self.score += score_for_radius(asteroid.radius)
+        x, y = asteroid.position.x, asteroid.position.y
+        radius = asteroid.radius
+        self._maybe_drop_powerup(x, y, radius)
+        asteroid.kill()
+        Explosion.spawn_explosions(x, y, radius)
+
+    def handle_bomb_explosions(self) -> None:
+        pending = [
+            bomb for bomb in list(self.bombs) if bomb.just_exploded and bomb.alive()
+        ]
+        resolved: set[Bomb] = set()
+        while pending:
+            bomb = pending.pop()
+            if bomb in resolved or not bomb.alive():
+                continue
+            resolved.add(bomb)
+            center = pygame.Vector2(bomb.position)
+            BlastRing(center.x, center.y)
+            Explosion.spawn_bomb_explosion(center.x, center.y)
+            for asteroid in list(self.asteroids):
+                if not asteroid.alive():
+                    continue
+                if center.distance_to(asteroid.position) <= BOMB_RADIUS + asteroid.radius:
+                    self._obliterate_asteroid(asteroid)
+            for other in list(self.bombs):
+                if other is bomb or other in resolved or not other.alive():
+                    continue
+                if center.distance_to(other.position) <= BOMB_RADIUS + other.radius:
+                    other.detonate_now()
+                    pending.append(other)
+            self._try_bomb_hurt_player(center)
+            bomb.kill()
+            if self.is_game_over:
+                return
+
+    def _try_bomb_hurt_player(self, center: pygame.Vector2) -> None:
+        if self.is_game_over:
+            return
+        if self.player.is_invulnerable:
+            return
+        if self.player.has_shield:
+            return
+        hit_range = BOMB_RADIUS + self.player.radius
+        if center.distance_to(self.player.position) > hit_range:
+            return
+        x, y = self.player.position.x, self.player.position.y
+        Explosion.spawn_player_explosion(x, y)
+        self.lives -= 1
+        if self.lives <= 0:
+            self.is_game_over = True
+            kill_all(self.bombs)
+            return
+        self.player.respawn(SPAWN_X, SPAWN_Y)
+        for rock in list(self.asteroids):
+            if rock.position.distance_to(self.player.position) <= PLAYER_RESPAWN_CLEAR_RADIUS:
+                rock.kill()
+        kill_all(self.bombs)
 
     def handle_shot_hits(self) -> None:
         for shot in list(self.shots):
@@ -129,13 +209,7 @@ class Game:
         self.score += score_for_radius(asteroid.radius)
         x, y = asteroid.position.x, asteroid.position.y
         radius = asteroid.radius
-        if radius > ASTEROID_MIN_RADIUS and random.random() < POWERUP_DROP_CHANCE:
-            kind = random.choices(
-                ("shield", "speed", "shot_wrap", "friction", "weapon"),
-                weights=(25, 25, 15, 15, 20),
-                k=1,
-            )[0]
-            Powerup(x, y, kind)
+        self._maybe_drop_powerup(x, y, radius)
         asteroid.split()
         Explosion.spawn_explosions(x, y, radius)
 
@@ -175,11 +249,22 @@ class Game:
                 shot.kill()
                 break
 
+    def _maybe_drop_powerup(self, x: float, y: float, radius: float) -> None:
+        if radius <= ASTEROID_MIN_RADIUS:
+            return
+        if random.random() >= POWERUP_DROP_CHANCE:
+            return
+        kind = random.choices(POWERUP_KINDS, weights=POWERUP_WEIGHTS, k=1)[0]
+        Powerup(x, y, kind)
+
     def update(self) -> None:
         if self.is_game_over:
             self.explosions.update(self.dt)
             return
         self.updatable.update(self.dt)
+        self.handle_bomb_explosions()
+        if self.is_game_over:
+            return
         self.handle_shot_powerups()
         self.handle_shot_hits()
         self.handle_powerup_pickups()

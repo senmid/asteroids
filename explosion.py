@@ -48,13 +48,23 @@ class Explosion(CircleShape):
             angle = random.uniform(0, 360)
             speed = random.uniform(speed_min, speed_max)
             velocity = pygame.Vector2(0, 1).rotate(angle) * speed
-            Explosion(x, y, velocity, life=random.uniform(0.2, 0.6), color=color)
+            Explosion(x, y, velocity, life=random.uniform(
+                0.2, 0.6), color=color)
 
     @staticmethod
     def spawn_explosions(x: float, y: float, radius: float) -> None:
-        count, speed_min, speed_max, color = Explosion._burst_for_radius(radius)
+        count, speed_min, speed_max, color = Explosion._burst_for_radius(
+            radius)
         Explosion._spawn(x, y, count, speed_min, speed_max, color)
 
     @staticmethod
     def spawn_player_explosion(x: float, y: float) -> None:
-        Explosion._spawn(x, y, count=20, speed_min=80, speed_max=260, color="orange")
+        Explosion._spawn(x, y, count=20, speed_min=80,
+                         speed_max=260, color="orange")
+
+    @staticmethod
+    def spawn_bomb_explosion(x: float, y: float) -> None:
+        Explosion._spawn(x, y, count=28, speed_min=90,
+                         speed_max=320, color="orange")
+        Explosion._spawn(x, y, count=12, speed_min=40,
+                         speed_max=160, color="yellow")

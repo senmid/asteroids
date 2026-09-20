@@ -1,6 +1,7 @@
 from circleshape import CircleShape
 import pygame
 from shot import Shot
+from bomb import Bomb
 from constants import (
     FRICTION_DEFECT_VALUE,
     LINE_WIDTH,
@@ -23,6 +24,11 @@ from constants import (
     WEAPON_BUFFS,
     WEAPON_NORMAL,
     WEAPONS,
+    BOMB_COOLDOWN,
+    BOMB_INHERIT_VELOCITY,
+    BOMB_MAX_AMMO,
+    BOMB_PICKUP_AMOUNT,
+    BOMBS_PER_LIFE,
 )
 
 
@@ -72,6 +78,8 @@ class Player(CircleShape):
         self.speed_timer = 0.0
         self.shot_wrap_timer = 0.0
         self.friction_timer = 0.0
+        self.bomb_ammo = BOMBS_PER_LIFE
+        self.bomb_cooldown = 0.0
 
     def forward(self) -> pygame.Vector2:
         return pygame.Vector2(0, 1).rotate(self.rotation)
@@ -138,6 +146,7 @@ class Player(CircleShape):
         self.shot_wrap_timer = max(0.0, self.shot_wrap_timer - dt)
         self.friction_timer = max(0.0, self.friction_timer - dt)
         self.weapon_timer = max(0.0, self.weapon_timer - dt)
+        self.bomb_cooldown = max(0.0, self.bomb_cooldown - dt)
         self._tick_shield(dt)
 
     def _tick_shield(self, dt: float) -> None:
@@ -164,7 +173,24 @@ class Player(CircleShape):
             self.grant_friction()
         elif kind == "weapon":
             self.grant_weapon_buff()
-        
+        elif kind == "bomb":
+            self.grant_bomb()
+
+    def grant_bomb(self) -> None:
+        self.bomb_ammo = min(BOMB_MAX_AMMO, self.bomb_ammo + BOMB_PICKUP_AMOUNT)
+
+    def try_drop_bomb(self) -> bool:
+        if self.bomb_cooldown > 0.0:
+            return False
+        if self.bomb_ammo <= 0:
+            return False
+        drop = self.position - self.forward() * (self.radius + 12)
+        bomb = Bomb(drop.x, drop.y)
+        bomb.velocity = self.velocity * BOMB_INHERIT_VELOCITY
+        self.bomb_ammo -= 1
+        self.bomb_cooldown = BOMB_COOLDOWN
+        return True
+
     def grant_weapon_buff(self) -> None:
         self.weapon_timer = WEAPON_BUFF_SECONDS
 
@@ -269,6 +295,8 @@ class Player(CircleShape):
         self.shot_wrap_timer = 0.0
         self.friction_timer = 0.0
         self.weapon_timer = 0.0
+        self.bomb_ammo = BOMBS_PER_LIFE
+        self.bomb_cooldown = 0.0
 
     @property
     def is_invulnerable(self) -> bool:

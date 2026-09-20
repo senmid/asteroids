@@ -15,6 +15,7 @@ KIND_COLORS = {
     "shot_wrap": "magenta",
     "friction": "red",
     "weapon": "white",
+    "bomb": "red",
 }
 
 
@@ -47,6 +48,15 @@ class Powerup(CircleShape):
         elif self.kind == "weapon":
             tip = self.position + pygame.Vector2(0, -self.radius * 0.6)
             pygame.draw.line(screen, color, self.position, tip, LINE_WIDTH)
+        elif self.kind == "bomb":
+            half = self.radius * 0.45
+            rect = pygame.Rect(
+                self.position.x - half,
+                self.position.y - half,
+                half * 2,
+                half * 2,
+            )
+            pygame.draw.rect(screen, color, rect, LINE_WIDTH)
     
     def update(self, dt: float) -> None:
         self.life -= dt
