@@ -42,6 +42,21 @@ BOMB_MAX_AMMO = 5
 BOMB_INHERIT_VELOCITY = 0.35
 BOMB_RING_LIFE = 0.28
 BOMB_PICKUP_AMOUNT = 1
+TITLE_TIMER = 5.3
+VOICE_CHANNEL = 0
+PICKUP_CHANNEL = 1
+MUSIC_VOLUME = 0.3
+MUSIC_DUCKED = 0.10
+VOICE_VOLUME = 0.9
+SFX_VOLUMES = {
+    "shoot": 0.22,
+    "explode_large": 0.20,
+    "death": 0.40,
+    "pickup": 0.35,
+    "bomb_drop": 0.30,
+    "bomb_boom": 0.40,
+    "shield": 0.30,
+}
 POWERUP_KINDS = ("shield", "speed", "shot_wrap", "friction", "weapon", "bomb")
 POWERUP_WEIGHTS = (22, 22, 12, 12, 16, 16)
 WEAPON_NORMAL = "normal"

@@ -1,4 +1,5 @@
 import pygame
+import audio
 from constants import (
     BOMB_MAX_AMMO,
     SCREEN_HEIGHT,
@@ -19,12 +20,16 @@ class Hud:
         fps: float,
         is_game_over: bool,
         player: Player | None = None,
+        best_score: int = 0
     ) -> None:
         fps_text = self.font.render(f"FPS: {round(fps)}", True, "white")
         fps_rect = fps_text.get_rect(topright=(SCREEN_WIDTH - 10, 10))
         screen.blit(fps_text, fps_rect)
+        if audio.is_muted():
+            muted = self.font.render("MUTED", True, "gray")
+            screen.blit(muted, (SCREEN_WIDTH / 2 - muted.get_width() / 2, 10))
         if is_game_over:
-            self._draw_game_over(screen, score)
+            self._draw_game_over(screen, score, best_score)
             return
         score_text = self.font.render(f"Score: {score}", True, "white")
         lives_label = self.font.render("Lives:", True, "white")
@@ -37,37 +42,42 @@ class Hud:
 
     def _draw_buffs(self, screen: pygame.Surface, player: Player) -> None:
         labels: list[tuple[str, str]] = []
-        labels.append((f"GUN {player.weapon.upper()}", "white"))
+        labels.append((f"GUN: {player.weapon.upper()}", "white"))
         if player.weapon_timer > 0.0:
-            labels.append((f"GUN BUFF {player.weapon_timer:.1f}", "orange"))
-        labels.append((f"BOMBS {player.bomb_ammo}/{BOMB_MAX_AMMO}", "red"))
+            labels.append((f"GUN BUFF: {player.weapon_timer:.1f}", "orange"))
+        labels.append((f"BOMBS: {player.bomb_ammo}/{BOMB_MAX_AMMO}", "red"))
         if player.bomb_cooldown > 0.0:
-            labels.append((f"BOMB COOLDOWN {player.bomb_cooldown:.1f}", "orange"))
+            labels.append((f"BOMB COOLDOWN: {player.bomb_cooldown:.1f}", "orange"))
         labels.append((
-            f"{'SHIELD ON' if player.has_shield else 'SHIELD'} "
+            f"{'SHIELD: ON' if player.has_shield else 'SHIELD:'} "
             f"{player.shield_energy:.1f}/{SHIELD_MAX_SECONDS:.0f}",
             "cyan" if player.has_shield else "white",
         ))
         if player.speed_timer > 0.0:
-            labels.append((f"SPEED! {player.speed_timer:.1f}", "yellow"))
+            labels.append((f"SPEED!: {player.speed_timer:.1f}", "yellow"))
         if player.shot_wrap_timer > 0.0:
-            labels.append((f"WRAP {player.shot_wrap_timer:.1f}", "magenta"))
+            labels.append((f"WRAP: {player.shot_wrap_timer:.1f}", "magenta"))
         if player.friction_timer > 0.0:
-            labels.append((f"SLOW {player.friction_timer:.1f}", "red"))
+            labels.append((f"SLOW: {player.friction_timer:.1f}", "red"))
         y = 70
         for text, color in labels:
             surface = self.font.render(text, True, color)
             screen.blit(surface, (10, y))
             y += 28
 
-    def _draw_game_over(self, screen: pygame.Surface, score: int) -> None:
+    def _draw_game_over(self, screen: pygame.Surface, score: int, best_score: int) -> None:
         final_score_text = self.font.render(f"Final Score: {score}", True, "white")
         final_score_rect = final_score_text.get_rect(
             center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         )
         screen.blit(final_score_text, final_score_rect)
+        best_text = self.font.render(f"Best: {best_score}", True, "white")
+        best_rect = best_text.get_rect(
+            center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 40)
+        )
+        screen.blit(best_text, best_rect)
         restart_text = self.font.render("Press Enter to restart", True, "white")
         restart_rect = restart_text.get_rect(
-            center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 40)
+            center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 80)
         )
         screen.blit(restart_text, restart_rect)

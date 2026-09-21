@@ -1,4 +1,5 @@
 import pygame
+import audio
 from circleshape import CircleShape
 from constants import (
     BOMB_DRAW_RADIUS,
@@ -48,6 +49,7 @@ class BlastRing(CircleShape):
         super().__init__(x, y, 4)
         self.life = BOMB_RING_LIFE
         self.max_life = BOMB_RING_LIFE
+        audio.play("bomb_boom")
 
     def update(self, dt: float) -> None:
         self.life -= dt

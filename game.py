@@ -2,6 +2,7 @@ import random
 import pygame
 from asteroid import Asteroid, score_for_radius
 from asteroidfield import AsteroidField
+import audio
 from bomb import BlastRing, Bomb
 from constants import (
     ASTEROID_MIN_RADIUS,
@@ -13,11 +14,14 @@ from constants import (
     POWERUP_WEIGHTS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    TITLE_TIMER,
+    VOICE_CHANNEL,
 )
 from explosion import Explosion
 from hud import Hud
 from player import Player
 from powerup import Powerup
+from scores import load_best, save_best
 from shot import Shot
 
 SPAWN_X = SCREEN_WIDTH / 2
@@ -34,6 +38,7 @@ class Game:
         self.screen = screen
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont("Arial", 24)
+        self.title_font = pygame.font.Font("assets/fonts/StarJedi-DGRW.ttf", 42)
         self.hud = Hud(self.font)
         self.background = pygame.image.load("assets/background.jpg").convert()
         self.background = pygame.transform.scale(
@@ -63,6 +68,11 @@ class Game:
         self.lives = PLAYER_LIVES
         self.is_game_over = False
         self.dt = 0.0
+        audio.load()
+        audio.play_music()
+        audio.play_voice("start")
+        self.title_timer = TITLE_TIMER
+        self.best_score = load_best()
 
     def reset(self) -> None:
         self.lives = PLAYER_LIVES
@@ -81,6 +91,9 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                audio.toggle_muted()
+                continue
             if self.is_game_over:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                     self.reset()
@@ -119,6 +132,7 @@ class Game:
         x, y = asteroid.position.x, asteroid.position.y
         radius = asteroid.radius
         self._maybe_drop_powerup(x, y, radius)
+        audio.play("explode_large")
         asteroid.kill()
         Explosion.spawn_explosions(x, y, radius)
 
@@ -163,9 +177,8 @@ class Game:
             return
         x, y = self.player.position.x, self.player.position.y
         Explosion.spawn_player_explosion(x, y)
-        self.lives -= 1
-        if self.lives <= 0:
-            self.is_game_over = True
+        self._lose_life()
+        if self.is_game_over:
             kill_all(self.bombs)
             return
         self.player.respawn(SPAWN_X, SPAWN_Y)
@@ -210,6 +223,7 @@ class Game:
         x, y = asteroid.position.x, asteroid.position.y
         radius = asteroid.radius
         self._maybe_drop_powerup(x, y, radius)
+        audio.play("explode_large")
         asteroid.split()
         Explosion.spawn_explosions(x, y, radius)
 
@@ -223,9 +237,8 @@ class Game:
                 continue
             x, y = self.player.position.x, self.player.position.y
             Explosion.spawn_player_explosion(x, y)
-            self.lives -= 1
-            if self.lives <= 0:
-                self.is_game_over = True
+            self._lose_life()
+            if self.is_game_over:
                 return
             self.player.respawn(SPAWN_X, SPAWN_Y)
             for rock in list(self.asteroids):
@@ -257,7 +270,41 @@ class Game:
         kind = random.choices(POWERUP_KINDS, weights=POWERUP_WEIGHTS, k=1)[0]
         Powerup(x, y, kind)
 
+    def _lose_life(self) -> None:
+        audio.play("death")
+        self.lives -= 1
+        if self.lives > 0:
+            audio.play_voice("death")
+            return
+        self.is_game_over = True
+        self._handle_game_over_audio()
+
+    def _handle_game_over_audio(self) -> None:
+        pygame.mixer.Channel(VOICE_CHANNEL).stop()
+        if self.best_score == 0:
+            if self.score <= 0:
+                return
+            save_best(self.score)
+            self.best_score = self.score
+            audio.play_voice("newscore")
+            return
+        if self.score > self.best_score:
+            save_best(self.score)
+            self.best_score = self.score
+            audio.play_voice("highscore")
+            return
+        if self.score == self.best_score:
+            audio.play_voice("newscore")
+            return
+        if self.score < self.best_score:
+            choice = random.randint(1, 3)
+            roast_key = "roast" if choice == 1 else f"roast{choice}"
+            audio.play_voice(roast_key)
+
     def update(self) -> None:
+        audio.tick()
+        if self.title_timer > 0.0:
+            self.title_timer = max(0.0, self.title_timer - self.dt)
         if self.is_game_over:
             self.explosions.update(self.dt)
             return
@@ -275,6 +322,17 @@ class Game:
         self.screen.blit(self.overlay, (0, 0))
         for sprite in self.drawable:
             sprite.draw(self.screen)
+        if self.title_timer > 0.0:
+            lines = (
+                "hey space ranger",
+                "time to kill some asteroids",
+            )
+            y = SCREEN_HEIGHT / 2 - 120
+            for line in lines:
+                surface = self.title_font.render(line, True, "white")
+                rect = surface.get_rect(center=(SCREEN_WIDTH / 2, y))
+                self.screen.blit(surface, rect)
+                y += 56
         self.hud.draw(
             self.screen,
             self.score,
@@ -282,6 +340,7 @@ class Game:
             self.clock.get_fps(),
             self.is_game_over,
             self.player,
+            self.best_score,
         )
         pygame.display.flip()
 

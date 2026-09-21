@@ -19,4 +19,5 @@ game_events.jsonl
 # Extensions
 docs/
 EXTENSIONS.md
-todo.txt
+*:Zone.Identifier
+highscore.json

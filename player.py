@@ -1,3 +1,4 @@
+import audio
 from circleshape import CircleShape
 import pygame
 from shot import Shot
@@ -163,6 +164,7 @@ class Player(CircleShape):
         )
 
     def grant_powerup(self, kind: str) -> None:
+        audio.play("pickup")
         if kind == "shield":
             self.grant_shield()
         elif kind == "speed":
@@ -185,6 +187,7 @@ class Player(CircleShape):
         if self.bomb_ammo <= 0:
             return False
         drop = self.position - self.forward() * (self.radius + 12)
+        audio.play("bomb_drop")
         bomb = Bomb(drop.x, drop.y)
         bomb.velocity = self.velocity * BOMB_INHERIT_VELOCITY
         self.bomb_ammo -= 1
@@ -215,6 +218,7 @@ class Player(CircleShape):
             return
         if self.shield_energy <= 0.0:
             return
+        audio.play("shield")
         self.is_shield_active = True
 
     def grant_shot_wrap(self) -> None:
@@ -262,6 +266,7 @@ class Player(CircleShape):
     def shoot(self) -> None:
         if self.shot_cooldown > 0:
             return
+        audio.play("shoot")
         stats = self._weapon_stats()
         self.shot_cooldown = stats["cooldown"]
         for angle in stats["angles"]:
